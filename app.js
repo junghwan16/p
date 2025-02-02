@@ -12,8 +12,8 @@ app.use("/user", userRouter);
 
 // 에러 발생 시 로그 기록 후 응답
 app.use((err, req, res, next) => {
-  logger.error(err);
-  res.status(500).json({ message: 'Internal Server Error' });
+	logger.error(err);
+	res.status(500).json({ message: "Internal Server Error" });
 });
 
 module.exports = app;

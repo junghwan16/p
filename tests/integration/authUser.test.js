@@ -8,8 +8,7 @@ describe("Auth 및 User 기능 통합 테스트", () => {
 	});
 
 	beforeEach(async () => {
-		// users 테이블 초기화
-		await knex("users").truncate();
+		await knex("users").truncate(); // users 테이블 초기화
 	});
 
 	afterAll(async () => {
@@ -20,6 +19,7 @@ describe("Auth 및 User 기능 통합 테스트", () => {
 	const userData = {
 		username: "testuser",
 		password: "testpassword",
+		email: "test@example.com",
 	};
 
 	async function registerUser(userData) {
@@ -35,6 +35,7 @@ describe("Auth 및 User 기능 통합 테스트", () => {
 		expect(res.statusCode).toBe(201);
 		expect(res.body).toHaveProperty("id");
 		expect(res.body.username).toBe(userData.username);
+		expect(res.body.email).toBe(userData.email);
 	});
 
 	test("POST /auth/register - 중복 사용자 등록 실패", async () => {
@@ -70,7 +71,7 @@ describe("Auth 및 User 기능 통합 테스트", () => {
 		await registerUser(userData);
 		// 잘못된 비밀번호로 로그인 시도
 		const res = await loginUser({
-			username: userData.username,
+			email: userData.email,
 			password: "wrongpassword",
 		});
 		expect(res.statusCode).toBe(400);
@@ -107,5 +108,65 @@ describe("Auth 및 User 기능 통합 테스트", () => {
 		expect(res.statusCode).toBe(200);
 		expect(res.body).toHaveProperty("id");
 		expect(res.body.username).toBe(userData.username);
+	});
+
+	test("PUT /user/profile - 프로필 업데이트 성공", async () => {
+		// 사용자 등록
+		await registerUser(userData);
+		// 로그인하여 토큰 획득
+		const loginRes = await loginUser(userData);
+		const token = loginRes.body.token;
+
+		const updateData = {
+			email: "test@example.com",
+		};
+
+		const res = await request(app)
+			.put("/user/profile")
+			.set("Authorization", `Bearer ${token}`)
+			.send(updateData);
+
+		expect(res.statusCode).toBe(200);
+		expect(res.body).toHaveProperty("message", "프로필 업데이트 성공");
+	});
+
+	test("PUT /user/profile - 인증 없이 프로필 업데이트 실패", async () => {
+		const updateData = {
+			email: "test@example.com",
+		};
+
+		const res = await request(app).put("/user/profile").send(updateData);
+
+		expect(res.statusCode).toBe(401);
+		expect(res.body).toHaveProperty("message");
+	});
+
+	test("DELETE /user - 계정 삭제 성공", async () => {
+		// 사용자 등록
+		await registerUser(userData);
+		// 로그인하여 토큰 획득
+		const loginRes = await loginUser(userData);
+		const token = loginRes.body.token;
+
+		const res = await request(app)
+			.delete("/user")
+			.set("Authorization", `Bearer ${token}`);
+
+		expect(res.statusCode).toBe(200);
+		expect(res.body).toHaveProperty("message", "계정 삭제 완료");
+
+		// 삭제된 계정으로 프로필 접근 시도
+		const profileRes = await request(app)
+			.get("/user/profile")
+			.set("Authorization", `Bearer ${token}`);
+
+		expect(profileRes.statusCode).toBe(404); // 404 Not Found
+	});
+
+	test("DELETE /user - 인증 없이 계정 삭제 실패", async () => {
+		const res = await request(app).delete("/user");
+
+		expect(res.statusCode).toBe(401);
+		expect(res.body).toHaveProperty("message");
 	});
 });

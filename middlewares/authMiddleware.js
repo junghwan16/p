@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
-const SECRET_KEY = process.env.JWT_SECRET || "your-secret-key";
+
+const JWT_SECRET_KEY = process.env.JWT_SECRET || "your-secret-key";
 
 module.exports = (req, res, next) => {
 	try {
@@ -10,7 +11,7 @@ module.exports = (req, res, next) => {
 			});
 		}
 
-		if (!authHeader.startsWith('Bearer ')) {
+		if (!authHeader.startsWith("Bearer ")) {
 			return res.status(401).json({
 				message: "잘못된 토큰 형식입니다",
 			});
@@ -18,7 +19,7 @@ module.exports = (req, res, next) => {
 
 		const token = authHeader.split(" ")[1];
 
-		const decoded = jwt.verify(token, SECRET_KEY);
+		const decoded = jwt.verify(token, JWT_SECRET_KEY);
 
 		if (decoded.exp && decoded.exp < Date.now() / 1000) {
 			return res.status(401).json({
@@ -26,15 +27,13 @@ module.exports = (req, res, next) => {
 			});
 		}
 
-		console.log(`인증 성공: 사용자 ID ${decoded.id}`);
 		req.user = decoded;
 		next();
-
 	} catch (error) {
-		console.error('토큰 검증 실패:', error.message);
+		console.error("토큰 검증 실패:", error.message);
 		return res.status(401).json({
 			message: "유효하지 않은 토큰입니다",
-			details: error.message
+			details: error.message,
 		});
 	}
 };

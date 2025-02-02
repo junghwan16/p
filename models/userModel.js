@@ -12,6 +12,15 @@ module.exports = {
 	},
 
 	/**
+	 * Find a user by email.
+	 * @param {string} email - The email to search for.
+	 * @returns {Promise<Object|null>} Resolves to the user object if found, else null.
+	 */
+	async findUserByEmail(email) {
+		return knex("users").where({ email }).first();
+	},
+
+	/**
 	 * Find a user by username.
 	 * @param {string} username - The username to search for.
 	 * @returns {Promise<Object|null>} Resolves to the user object if found, else null.
@@ -27,5 +36,25 @@ module.exports = {
 	 */
 	async findUserById(id) {
 		return knex("users").where({ id }).first();
+	},
+
+	/**
+	 * Update a user's information
+	 * @param {number} id - The user's id
+	 * @param {Object} updates - The fields to update
+	 * @returns {Promise<Object>} The updated user object
+	 */
+	async updateUser(id, updates) {
+		await knex("users").where({ id }).update(updates);
+		return this.findUserById(id);
+	},
+
+	/**
+	 * Delete a user
+	 * @param {number} id - The user's id
+	 * @returns {Promise<void>}
+	 */
+	async deleteUser(id) {
+		return knex("users").where({ id }).del();
 	},
 };
