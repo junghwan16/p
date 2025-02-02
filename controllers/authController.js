@@ -34,7 +34,7 @@ exports.register = async (req, res) => {
 			email: newUser.email,
 			username: newUser.username,
 		};
-		res.redirect("/user/profile");
+		res.redirect("/");
 	} catch (error) {
 		res.render("auth/register", { error: "회원가입 중 오류가 발생했습니다" });
 	}
@@ -63,7 +63,7 @@ exports.login = async (req, res) => {
 			username: user.username,
 			email: user.email,
 		};
-		res.redirect("/user/profile");
+		res.redirect("/");
 	} catch (error) {
 		res.render("auth/login", { error: "로그인 중 오류가 발생했습니다" });
 	}
