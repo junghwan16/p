@@ -1,6 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const userModel = require("../models/userModel");
+const userRepository = require("../repositories/userRepository");
 
 const SECRET_KEY = process.env.JWT_SECRET || "your-secret-key";
 const SALT_ROUNDS = 10;
@@ -8,14 +8,14 @@ const SALT_ROUNDS = 10;
 exports.register = async (req, res) => {
 	const { email, username, password } = req.body;
 
-	const existingUser = await userModel.findUserByEmail(email);
+	const existingUser = await userRepository.getUserByEmail(email);
 	if (existingUser) {
 		res.status(400).json({ message: "이미 존재하는 사용자" });
 		return;
 	}
 
 	const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-	const newUser = await userModel.createUser({
+	const newUser = await userRepository.createUser({
 		username,
 		password: hashedPassword,
 		email,
@@ -35,7 +35,7 @@ exports.login = async (req, res) => {
 		return;
 	}
 
-	const user = await userModel.findUserByEmail(email);
+	const user = await userRepository.getUserByEmail(email);
 	if (!user) {
 		res.status(400).json({ message: "이메일 또는 비밀번호 오류" });
 		return;
