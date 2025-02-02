@@ -1,0 +1,7 @@
+- JS만 쓸때 생산성 체감해보기
+- 기술 스택:
+  - express
+  - knex
+    - sqlite3
+  - winston
+  - jest, supertest
