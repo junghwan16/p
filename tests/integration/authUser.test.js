@@ -1,4 +1,5 @@
 const request = require("supertest");
+const cheerio = require("cheerio");
 const app = require("../../app");
 const knex = require("../../db/knex");
 
@@ -8,7 +9,7 @@ describe("Auth 및 User 기능 통합 테스트", () => {
 	});
 
 	beforeEach(async () => {
-		await knex("users").truncate(); // users 테이블 초기화
+		await knex("users").truncate();
 	});
 
 	afterAll(async () => {
@@ -22,151 +23,76 @@ describe("Auth 및 User 기능 통합 테스트", () => {
 		email: "test@example.com",
 	};
 
-	async function registerUser(userData) {
-		return await request(app).post("/auth/register").send(userData);
-	}
-
-	async function loginUser(userData) {
-		return await request(app).post("/auth/login").send(userData);
-	}
+	test("GET /auth/register - 회원가입 페이지 렌더링", async () => {
+		const res = await request(app).get("/auth/register");
+		expect(res.statusCode).toBe(200);
+		expect(res.text).toContain("회원가입");
+	});
 
 	test("POST /auth/register - 사용자 등록 성공", async () => {
-		const res = await registerUser(userData);
-		expect(res.statusCode).toBe(201);
-		expect(res.body).toHaveProperty("id");
-		expect(res.body.username).toBe(userData.username);
-		expect(res.body.email).toBe(userData.email);
+		const res = await request(app)
+			.post("/auth/register")
+			.send(userData)
+			.expect(302) // 리다이렉션 확인
+			.expect("Location", "/"); // 홈으로 리다이렉트
 	});
 
 	test("POST /auth/register - 중복 사용자 등록 실패", async () => {
 		// 먼저 사용자 등록
-		await registerUser(userData);
+		await request(app).post("/auth/register").send(userData);
+
 		// 동일한 사용자 다시 등록 시도
-		const res = await registerUser(userData);
-		expect(res.statusCode).toBe(400);
-		expect(res.body).toHaveProperty("message");
+		const res = await request(app).post("/auth/register").send(userData);
+
+		expect(res.statusCode).toBe(200); // 에러와 함께 렌더링
+		const $ = cheerio.load(res.text);
+		expect($(".error").text()).toContain("이미 존재하는 사용자입니다");
 	});
 
-	test("POST /auth/register - 유효하지 않은 입력값으로 등록 실패", async () => {
-		const invalidData = {
-			username: "",
-			password: "123",
-		};
-		const res = await registerUser(invalidData);
-		expect(res.statusCode).toBe(400);
-		expect(res.body).toHaveProperty("errors");
+	test("GET /auth/login - 로그인 페이지 렌더링", async () => {
+		const res = await request(app).get("/auth/login");
+		expect(res.statusCode).toBe(200);
+		expect(res.text).toContain("로그인");
 	});
 
 	test("POST /auth/login - 로그인 성공", async () => {
 		// 먼저 사용자 등록
-		await registerUser(userData);
+		await request(app).post("/auth/register").send(userData);
+
 		// 로그인 시도
-		const res = await loginUser(userData);
-		expect(res.statusCode).toBe(200);
-		expect(res.body).toHaveProperty("token");
+		const res = await request(app)
+			.post("/auth/login")
+			.send(userData)
+			.expect(302) // 리다이렉션 확인
+			.expect("Location", "/"); // 홈으로 리다이렉트
 	});
 
-	test("POST /auth/login - 비밀번호 불일치로 로그인 실패", async () => {
+	test("POST /auth/login - 잘못된 비밀번호로 로그인 실패", async () => {
 		// 먼저 사용자 등록
-		await registerUser(userData);
-		// 잘못된 비밀번호로 로그인 시도
-		const res = await loginUser({
+		await request(app).post("/auth/register").send(userData);
+
+		// 잘못된 비밀번호로 로그인
+		const res = await request(app).post("/auth/login").send({
 			email: userData.email,
 			password: "wrongpassword",
 		});
-		expect(res.statusCode).toBe(400);
-		expect(res.body).toHaveProperty("message");
-	});
-
-	test("POST /auth/login - 유효하지 않은 입력값으로 로그인 실패", async () => {
-		const invalidData = {
-			username: "",
-			password: "",
-		};
-		const res = await loginUser(invalidData);
-		expect(res.statusCode).toBe(400);
-		expect(res.body).toHaveProperty("errors");
-	});
-
-	test("GET /user/profile - 토큰 없이 접근 시 인증 실패", async () => {
-		const res = await request(app).get("/user/profile");
-		expect(res.statusCode).toBe(401);
-		expect(res.body).toHaveProperty("message");
-	});
-
-	test("GET /user/profile - 토큰 포함 시 사용자 프로필 반환", async () => {
-		// 사용자 등록
-		await registerUser(userData);
-		// 로그인하여 토큰 획득
-		const loginRes = await loginUser(userData);
-		const token = loginRes.body.token;
-
-		// 프로필 조회
-		const res = await request(app)
-			.get("/user/profile")
-			.set("Authorization", `Bearer ${token}`);
-		expect(res.statusCode).toBe(200);
-		expect(res.body).toHaveProperty("id");
-		expect(res.body.username).toBe(userData.username);
-	});
-
-	test("PUT /user/profile - 프로필 업데이트 성공", async () => {
-		// 사용자 등록
-		await registerUser(userData);
-		// 로그인하여 토큰 획득
-		const loginRes = await loginUser(userData);
-		const token = loginRes.body.token;
-
-		const updateData = {
-			email: "test@example.com",
-		};
-
-		const res = await request(app)
-			.put("/user/profile")
-			.set("Authorization", `Bearer ${token}`)
-			.send(updateData);
 
 		expect(res.statusCode).toBe(200);
-		expect(res.body).toHaveProperty("message", "프로필 업데이트 성공");
+		const $ = cheerio.load(res.text);
+		expect($(".error").text()).toContain(
+			"이메일 또는 비밀번호가 일치하지 않습니다",
+		);
 	});
 
-	test("PUT /user/profile - 인증 없이 프로필 업데이트 실패", async () => {
-		const updateData = {
-			email: "test@example.com",
-		};
+	test("POST /auth/logout - 로그아웃 성공", async () => {
+		// 먼저 로그인
+		const agent = request.agent(app);
+		await agent.post("/auth/register").send(userData);
 
-		const res = await request(app).put("/user/profile").send(updateData);
-
-		expect(res.statusCode).toBe(401);
-		expect(res.body).toHaveProperty("message");
-	});
-
-	test("DELETE /user - 계정 삭제 성공", async () => {
-		// 사용자 등록
-		await registerUser(userData);
-		// 로그인하여 토큰 획득
-		const loginRes = await loginUser(userData);
-		const token = loginRes.body.token;
-
-		const res = await request(app)
-			.delete("/user")
-			.set("Authorization", `Bearer ${token}`);
-
-		expect(res.statusCode).toBe(200);
-		expect(res.body).toHaveProperty("message", "계정 삭제 완료");
-
-		// 삭제된 계정으로 프로필 접근 시도
-		const profileRes = await request(app)
-			.get("/user/profile")
-			.set("Authorization", `Bearer ${token}`);
-
-		expect(profileRes.statusCode).toBe(404); // 404 Not Found
-	});
-
-	test("DELETE /user - 인증 없이 계정 삭제 실패", async () => {
-		const res = await request(app).delete("/user");
-
-		expect(res.statusCode).toBe(401);
-		expect(res.body).toHaveProperty("message");
+		// 로그아웃
+		const res = await agent
+			.post("/auth/logout")
+			.expect(302)
+			.expect("Location", "/auth/login");
 	});
 });

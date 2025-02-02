@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>프로필</title>
+  <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+</head>
+
+<body>
+  <h1>프로필</h1>
+
+  <%- include('./partials/profile-form') %>
+
+    <form hx-delete="/user" hx-confirm="정말 계정을 삭제하시겠습니까?" hx-push-url="true">
+      <button type="submit">계정 삭제</button>
+    </form>
+
+    <p><a href="/">홈으로 돌아가기</a></p>
+</body>
+
+</html>
