@@ -47,7 +47,7 @@ app.use("/user", userRouter);
 // 에러 발생 시 로그 기록 후 응답
 app.use((err, req, res, next) => {
 	logger.error(err);
-	res.render("error", { error: err });
+	res.render("error");	// 서버 에러는 별도의 메시지를 보여주지 않는게 좋음.
 });
 
 module.exports = app;
